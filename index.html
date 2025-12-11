@@ -68,8 +68,11 @@
 
 <body class="flex flex-col items-center min-h-screen py-10 px-4">
 
-    <h1 class="text-3xl font-light mb-2 text-center">The simplest way to Excel</h1>
-    <p class="text-xs text-gray-400 mb-8 uppercase tracking-widest">Client-Side Processing • No Data Uploaded</p>
+    <div class="text-center mb-8">
+        <h1 class="text-5xl font-black tracking-tighter mb-2">FCK c&p <span class="text-4xl text-gray-700">📊🖕</span>
+        </h1>
+        <p class="text-xs text-gray-400 uppercase tracking-widest">Client-Side Processing • No Data Uploaded</p>
+    </div>
 
     <div class="w-full max-w-2xl bg-white p-8 shadow-xl rounded-lg" style="min-height: 600px;">
 
@@ -77,16 +80,24 @@
             <div class="rule-row mb-8 border-b pb-6 relative" data-id="1">
 
                 <div class="flex flex-wrap items-center gap-2 mb-2">
-                    <span>Take Column</span>
-                    <input type="text" class="input-box rule-src-col" placeholder="A">
-                    <span>From Row</span>
-                    <input type="number" class="input-box rule-src-start" value="1">
-                    <span>Until</span>
-                    <input type="number" class="input-box rule-src-end" placeholder="End">
+                    <select class="rule-type input-box w-20 font-bold bg-gray-50 cursor-pointer"
+                        onchange="updateLabels(this)">
+                        <option value="col">Col</option>
+                        <option value="row">Row</option>
+                    </select>
+
+                    <span class="label-take font-bold text-xs uppercase text-gray-500">Take Col</span>
+                    <input type="text" class="input-box rule-src-main" placeholder="A">
+
+                    <span class="label-from text-xs text-gray-400">From Row</span>
+                    <input type="text" class="input-box rule-src-start" value="1">
+
+                    <span class="label-until text-xs text-gray-400">Until</span>
+                    <input type="text" class="input-box rule-src-end" placeholder="End">
 
                     <span class="btn-icon text-[#107C41] ml-2 hover:scale-110" onclick="addRule()"
-                        title="Add another column">+</span>
-                    <span class="btn-icon text-[#107C41] ml-2 hover:scale-110" onclick="openAdvanced(this)"
+                        title="Add another rule">+</span>
+                    <span class="btn-icon text-[#107C41] ml-2 hover:scale-110 btn-adv" onclick="openAdvanced(this)"
                         title="Advanced Logic">*</span>
                 </div>
 
@@ -104,10 +115,11 @@
                 <div class="text-gray-400 text-center my-2 text-xl">↓</div>
 
                 <div class="flex flex-wrap items-center gap-2">
-                    <span>Put in Column</span>
-                    <input type="text" class="input-box rule-tgt-col" placeholder="B">
-                    <span>Starting Row</span>
-                    <input type="number" class="input-box rule-tgt-start" value="1">
+                    <span class="label-put font-bold text-xs uppercase text-gray-500">Put in Col</span>
+                    <input type="text" class="input-box rule-tgt-main" placeholder="B">
+
+                    <span class="label-at text-xs text-gray-400">At Row</span>
+                    <input type="text" class="input-box rule-tgt-start" value="1">
                 </div>
             </div>
         </div>
@@ -270,10 +282,33 @@
             const container = document.getElementById('rulesContainer');
             const firstRow = container.querySelector('.rule-row');
             const clone = firstRow.cloneNode(true);
-            clone.querySelectorAll('input').forEach(i => i.value = (i.type === "number" ? "1" : ""));
+            clone.querySelectorAll('input').forEach(i => i.value = (i.classList.contains('rule-src-start') || i.classList.contains('rule-tgt-start')) ? "1" : "");
             clone.querySelector('.advanced-badge').classList.add('hidden');
             clone.querySelector('.rule-adv-active').value = "false";
+            // Check visibility
+            updateLabels(clone.querySelector('.rule-type'));
             container.appendChild(clone);
+        }
+
+        function updateLabels(select) {
+            const row = select.closest('.rule-row');
+            const isRowMode = select.value === 'row';
+
+            // Labels
+            row.querySelector('.label-take').innerText = isRowMode ? "Take Row" : "Take Col";
+            row.querySelector('.label-from').innerText = isRowMode ? "From Col" : "From Row";
+            row.querySelector('.label-until').innerText = isRowMode ? "To Col" : "Until Row";
+            row.querySelector('.label-put').innerText = isRowMode ? "Put in Row" : "Put in Col";
+            row.querySelector('.label-at').innerText = isRowMode ? "At Col" : "At Row";
+
+            // Disable Advanced for Row Mode (Complexity reduction)
+            const advBtn = row.querySelector('.btn-adv');
+            if (isRowMode) {
+                advBtn.classList.add('opacity-20', 'pointer-events-none');
+                clearAdvanced(advBtn);
+            } else {
+                advBtn.classList.remove('opacity-20', 'pointer-events-none');
+            }
         }
 
         let currentActiveRow = null;
@@ -334,51 +369,73 @@
 
             // Iterate Rules
             document.querySelectorAll('.rule-row').forEach(row => {
-                const srcColIdx = colToIndex(row.querySelector('.rule-src-col').value);
-                const srcStart = parseInt(row.querySelector('.rule-src-start').value) - 1; // 0-based
-                let srcEnd = row.querySelector('.rule-src-end').value;
-                srcEnd = srcEnd ? parseInt(srcEnd) : srcData.length;
+                const type = row.querySelector('.rule-type').value;
 
-                const tgtColIdx = colToIndex(row.querySelector('.rule-tgt-col').value);
-                const tgtStart = parseInt(row.querySelector('.rule-tgt-start').value) - 1;
+                if (type === 'col') {
+                    // --- COLUMN MODE ---
+                    const srcColIdx = colToIndex(row.querySelector('.rule-src-main').value);
+                    const srcStart = parseInt(row.querySelector('.rule-src-start').value) - 1; // 0-based
+                    let srcEnd = row.querySelector('.rule-src-end').value;
+                    srcEnd = srcEnd ? parseInt(srcEnd) : srcData.length;
 
-                const isAdvanced = row.querySelector('.rule-adv-active').value === "true";
+                    const tgtColIdx = colToIndex(row.querySelector('.rule-tgt-main').value);
+                    const tgtStart = parseInt(row.querySelector('.rule-tgt-start').value) - 1;
+                    const isAdvanced = row.querySelector('.rule-adv-active').value === "true";
 
-                if (srcColIdx < 0 || tgtColIdx < 0) return; // Skip invalid rules
+                    if (srcColIdx < 0 || tgtColIdx < 0) return;
 
-                if (isAdvanced) {
-                    // --- VLOOKUP LOGIC ---
-                    const matchSrcIdx = colToIndex(row.querySelector('.rule-match-src').value);
-                    const matchTgtIdx = colToIndex(row.querySelector('.rule-match-tgt').value);
-
-                    // 1. Build Map from Source { MatchValue: DataValue }
-                    let dataMap = new Map();
-                    for (let i = srcStart; i < srcEnd && i < srcData.length; i++) {
-                        if (!srcData[i]) continue;
-                        let key = srcData[i][matchSrcIdx];
-                        let val = srcData[i][srcColIdx];
-                        if (key !== undefined && key !== "") dataMap.set(String(key).trim(), val);
-                    }
-
-                    // 2. Apply to Target
-                    for (let i = tgtStart; i < tgtData.length; i++) {
-                        if (!tgtData[i]) tgtData[i] = []; // Ensure row exists
-                        let key = tgtData[i][matchTgtIdx];
-                        if (key !== undefined && dataMap.has(String(key).trim())) {
-                            tgtData[i][tgtColIdx] = dataMap.get(String(key).trim());
+                    if (isAdvanced) {
+                        // VLOOKUP LOGIC
+                        const matchSrcIdx = colToIndex(row.querySelector('.rule-match-src').value);
+                        const matchTgtIdx = colToIndex(row.querySelector('.rule-match-tgt').value);
+                        let dataMap = new Map();
+                        for (let i = srcStart; i < srcEnd && i < srcData.length; i++) {
+                            if (!srcData[i]) continue;
+                            let key = srcData[i][matchSrcIdx];
+                            let val = srcData[i][srcColIdx];
+                            if (key !== undefined && key !== "") dataMap.set(String(key).trim(), val);
+                        }
+                        for (let i = tgtStart; i < tgtData.length; i++) {
+                            if (!tgtData[i]) tgtData[i] = [];
+                            let key = tgtData[i][matchTgtIdx];
+                            if (key !== undefined && dataMap.has(String(key).trim())) {
+                                tgtData[i][tgtColIdx] = dataMap.get(String(key).trim());
+                            }
+                        }
+                    } else {
+                        // SIMPLE COPY (Vertical)
+                        let writeRow = tgtStart;
+                        for (let readRow = srcStart; readRow < srcEnd && readRow < srcData.length; readRow++) {
+                            if (!tgtData[writeRow]) tgtData[writeRow] = [];
+                            let val = srcData[readRow] ? srcData[readRow][srcColIdx] : "";
+                            tgtData[writeRow][tgtColIdx] = val;
+                            writeRow++;
                         }
                     }
-
                 } else {
-                    // --- SIMPLE COPY LOGIC ---
-                    let writeRow = tgtStart;
-                    for (let readRow = srcStart; readRow < srcEnd && readRow < srcData.length; readRow++) {
-                        if (!tgtData[writeRow]) tgtData[writeRow] = []; // Ensure row exists
+                    // --- ROW MODE ---
+                    // Take Row X, From Col A -> Col Z, Put in Row Y, Starting at Col B
+                    const srcRowIdx = parseInt(row.querySelector('.rule-src-main').value) - 1;
+                    const srcColStart = colToIndex(row.querySelector('.rule-src-start').value);
+                    const srcColEndRaw = row.querySelector('.rule-src-end').value;
+                    let srcColEnd = srcColEndRaw ? colToIndex(srcColEndRaw) : (srcData[srcRowIdx]?.length || 100);
 
-                        let val = srcData[readRow] ? srcData[readRow][srcColIdx] : "";
-                        tgtData[writeRow][tgtColIdx] = val;
+                    const tgtRowIdx = parseInt(row.querySelector('.rule-tgt-main').value) - 1;
+                    const tgtColStart = colToIndex(row.querySelector('.rule-tgt-start').value);
 
-                        writeRow++;
+                    if (isNaN(srcRowIdx) || isNaN(tgtRowIdx)) return;
+                    if (srcColStart < 0) return;
+
+                    // Ensure target row exists
+                    if (!tgtData[tgtRowIdx]) tgtData[tgtRowIdx] = [];
+
+                    // Copy Horizontally
+                    let writeCol = tgtColStart;
+                    for (let readCol = srcColStart; readCol <= srcColEnd; readCol++) {
+                        // Safe read
+                        let val = (srcData[srcRowIdx] && srcData[srcRowIdx][readCol] !== undefined) ? srcData[srcRowIdx][readCol] : "";
+                        tgtData[tgtRowIdx][writeCol] = val;
+                        writeCol++;
                     }
                 }
             });
