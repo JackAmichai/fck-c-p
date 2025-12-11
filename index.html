@@ -69,9 +69,8 @@
 <body class="flex flex-col items-center min-h-screen py-10 px-4">
 
     <div class="text-center mb-8">
-        <h1 class="text-5xl font-black tracking-tighter mb-2">FCK c&p <span class="text-4xl text-gray-700">📊🖕</span>
-        </h1>
-        <p class="text-xs text-gray-400 uppercase tracking-widest">Client-Side Processing • No Data Uploaded</p>
+        <h1 class="text-5xl font-black tracking-tighter mb-2">FCK c&p</h1>
+        <p class="text-xs text-gray-400 uppercase tracking-widest">The Simplest way to Excel</p>
     </div>
 
     <div class="w-full max-w-2xl bg-white p-8 shadow-xl rounded-lg" style="min-height: 600px;">
@@ -103,14 +102,24 @@
 
                 <div
                     class="advanced-badge hidden text-xs bg-green-100 text-green-800 px-2 py-1 rounded inline-block mt-1">
-                    Match: If Source <span class="adv-src font-bold">?</span> == Target <span
-                        class="adv-tgt font-bold">?</span>
+                    <span class="adv-desc">Logic Active</span>
                     <span class="cursor-pointer text-red-500 font-bold ml-2" onclick="clearAdvanced(this)">x</span>
                 </div>
 
                 <input type="hidden" class="rule-adv-active" value="false">
+                <input type="hidden" class="rule-adv-type" value="match">
+
+                <!-- Match Params -->
                 <input type="hidden" class="rule-match-src" value="">
                 <input type="hidden" class="rule-match-tgt" value="">
+
+                <!-- Filter Params -->
+                <input type="hidden" class="rule-filter-col" value="">
+                <input type="hidden" class="rule-filter-val" value="">
+
+                <!-- Math Params -->
+                <input type="hidden" class="rule-math-op" value="mult">
+                <input type="hidden" class="rule-math-val" value="">
 
                 <div class="text-gray-400 text-center my-2 text-xl">↓</div>
 
@@ -152,20 +161,61 @@
 
     <div id="advModal" class="modal">
         <div class="bg-white p-6 rounded shadow-lg w-96">
-            <h3 class="text-lg font-bold mb-4">Advanced Matching (VLOOKUP)</h3>
-            <p class="text-sm text-gray-600 mb-4">Only transfer data if a unique ID matches (e.g., Product ID).</p>
+            <h3 class="text-lg font-bold mb-4">Advanced Logic</h3>
 
-            <div class="mb-3">
-                <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Match ID in Source Column:</label>
-                <input type="text" id="modalSrcCol" class="border p-2 w-full rounded" placeholder="e.g. A">
+            <div class="mb-4">
+                <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Logic Type</label>
+                <select id="modalType" class="border p-2 w-full rounded bg-gray-50" onchange="updateModalUI()">
+                    <option value="match">Match (VLOOKUP)</option>
+                    <option value="filter">Filter (Copy if...)</option>
+                    <option value="math">Math (Calculate)</option>
+                </select>
             </div>
 
-            <div class="mb-6">
-                <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Match ID in Target Column:</label>
-                <input type="text" id="modalTgtCol" class="border p-2 w-full rounded" placeholder="e.g. A">
+            <!-- VLOOKUP Inputs -->
+            <div id="uiMatch">
+                <p class="text-xs text-gray-500 mb-2">Only transfer if ID matches.</p>
+                <div class="mb-3">
+                    <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Match ID in Source Col:</label>
+                    <input type="text" id="modalSrcCol" class="border p-2 w-full rounded" placeholder="e.g. A">
+                </div>
+                <div class="mb-3">
+                    <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Match ID in Target Col:</label>
+                    <input type="text" id="modalTgtCol" class="border p-2 w-full rounded" placeholder="e.g. A">
+                </div>
             </div>
 
-            <div class="flex justify-end gap-2">
+            <!-- Filter Inputs -->
+            <div id="uiFilter" class="hidden">
+                <p class="text-xs text-gray-500 mb-2">Only copy rows where a column matches a value.</p>
+                <div class="mb-3">
+                    <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Check Column:</label>
+                    <input type="text" id="modalFilterCol" class="border p-2 w-full rounded" placeholder="e.g. C">
+                </div>
+                <div class="mb-3">
+                    <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Value Equals (or
+                        contains):</label>
+                    <input type="text" id="modalFilterVal" class="border p-2 w-full rounded" placeholder="e.g. Paid">
+                </div>
+            </div>
+
+            <!-- Math Inputs -->
+            <div id="uiMath" class="hidden">
+                <p class="text-xs text-gray-500 mb-2">Apply math to every number copied.</p>
+                <div class="mb-3">
+                    <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Operation:</label>
+                    <select id="modalMathOp" class="border p-2 w-full rounded">
+                        <option value="mult">Multiply By (*)</option>
+                        <option value="add">Add (+)</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Value:</label>
+                    <input type="number" id="modalMathVal" class="border p-2 w-full rounded" placeholder="e.g. 1.2">
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-6">
                 <button type="button" onclick="closeModal()"
                     class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
                 <button type="button" onclick="saveAdvanced()"
@@ -317,25 +367,76 @@
         function openAdvanced(btn) {
             currentActiveRow = btn.closest('.rule-row');
             modal.style.display = 'flex';
+
+            // Load existing values
+            const type = currentActiveRow.querySelector('.rule-adv-type').value || 'match';
+            document.getElementById('modalType').value = type;
+            updateModalUI();
+
+            // Load specifics
             document.getElementById('modalSrcCol').value = currentActiveRow.querySelector('.rule-match-src').value;
             document.getElementById('modalTgtCol').value = currentActiveRow.querySelector('.rule-match-tgt').value;
+
+            document.getElementById('modalFilterCol').value = currentActiveRow.querySelector('.rule-filter-col').value;
+            document.getElementById('modalFilterVal').value = currentActiveRow.querySelector('.rule-filter-val').value;
+
+            document.getElementById('modalMathOp').value = currentActiveRow.querySelector('.rule-math-op').value || 'mult';
+            document.getElementById('modalMathVal').value = currentActiveRow.querySelector('.rule-math-val').value;
+        }
+
+        function updateModalUI() {
+            const type = document.getElementById('modalType').value;
+            document.getElementById('uiMatch').classList.add('hidden');
+            document.getElementById('uiFilter').classList.add('hidden');
+            document.getElementById('uiMath').classList.add('hidden');
+
+            if (type === 'match') document.getElementById('uiMatch').classList.remove('hidden');
+            if (type === 'filter') document.getElementById('uiFilter').classList.remove('hidden');
+            if (type === 'math') document.getElementById('uiMath').classList.remove('hidden');
         }
 
         function closeModal() { modal.style.display = 'none'; currentActiveRow = null; }
 
         function saveAdvanced() {
             if (!currentActiveRow) return;
-            const src = document.getElementById('modalSrcCol').value;
-            const tgt = document.getElementById('modalTgtCol').value;
-            if (src && tgt) {
-                currentActiveRow.querySelector('.rule-adv-active').value = "true";
+            const type = document.getElementById('modalType').value;
+
+            // Save common
+            currentActiveRow.querySelector('.rule-adv-active').value = "true";
+            currentActiveRow.querySelector('.rule-adv-type').value = type;
+
+            let desc = "";
+
+            if (type === 'match') {
+                const src = document.getElementById('modalSrcCol').value;
+                const tgt = document.getElementById('modalTgtCol').value;
+                if (!src || !tgt) return;
                 currentActiveRow.querySelector('.rule-match-src').value = src;
                 currentActiveRow.querySelector('.rule-match-tgt').value = tgt;
-                const badge = currentActiveRow.querySelector('.advanced-badge');
-                badge.classList.remove('hidden');
-                badge.querySelector('.adv-src').innerText = src.toUpperCase();
-                badge.querySelector('.adv-tgt').innerText = tgt.toUpperCase();
+                desc = `Match ${src} = ${tgt}`;
             }
+            if (type === 'filter') {
+                const col = document.getElementById('modalFilterCol').value;
+                const val = document.getElementById('modalFilterVal').value;
+                if (!col) return;
+                currentActiveRow.querySelector('.rule-filter-col').value = col;
+                currentActiveRow.querySelector('.rule-filter-val').value = val;
+                desc = `Filter if ${col} has "${val}"`;
+            }
+            if (type === 'math') {
+                const op = document.getElementById('modalMathOp').value;
+                const val = document.getElementById('modalMathVal').value;
+                if (!val) return;
+                currentActiveRow.querySelector('.rule-math-op').value = op;
+                currentActiveRow.querySelector('.rule-math-val').value = val;
+                desc = `Math: ${op === 'mult' ? '*' : '+'} ${val}`;
+            }
+
+            // Update Badge
+            const badge = currentActiveRow.querySelector('.advanced-badge');
+            badge.classList.remove('hidden');
+            badge.querySelector('.adv-desc').innerText = desc;
+
             closeModal();
         }
 
@@ -381,10 +482,11 @@
                     const tgtColIdx = colToIndex(row.querySelector('.rule-tgt-main').value);
                     const tgtStart = parseInt(row.querySelector('.rule-tgt-start').value) - 1;
                     const isAdvanced = row.querySelector('.rule-adv-active').value === "true";
+                    const advType = row.querySelector('.rule-adv-type').value;
 
                     if (srcColIdx < 0 || tgtColIdx < 0) return;
 
-                    if (isAdvanced) {
+                    if (isAdvanced && advType === 'match') {
                         // VLOOKUP LOGIC
                         const matchSrcIdx = colToIndex(row.querySelector('.rule-match-src').value);
                         const matchTgtIdx = colToIndex(row.querySelector('.rule-match-tgt').value);
@@ -402,6 +504,46 @@
                                 tgtData[i][tgtColIdx] = dataMap.get(String(key).trim());
                             }
                         }
+                    } else if (isAdvanced && advType === 'filter') {
+                        // FILTER LOGIC
+                        const filterCol = colToIndex(row.querySelector('.rule-filter-col').value);
+                        const filterVal = row.querySelector('.rule-filter-val').value.toLowerCase();
+
+                        let writeRow = tgtStart;
+                        for (let readRow = srcStart; readRow < srcEnd && readRow < srcData.length; readRow++) {
+                            // Check Condition
+                            let rowData = srcData[readRow];
+                            if (!rowData) continue;
+
+                            let checkVal = String(rowData[filterCol] || "").toLowerCase();
+                            if (filterCol >= 0 && !checkVal.includes(filterVal)) continue; // Skip if no match
+
+                            // Copy
+                            if (!tgtData[writeRow]) tgtData[writeRow] = [];
+                            tgtData[writeRow][tgtColIdx] = rowData[srcColIdx];
+                            writeRow++;
+                        }
+
+                    } else if (isAdvanced && advType === 'math') {
+                        // MATH LOGIC
+                        const op = row.querySelector('.rule-math-op').value;
+                        const mod = parseFloat(row.querySelector('.rule-math-val').value);
+
+                        let writeRow = tgtStart;
+                        for (let readRow = srcStart; readRow < srcEnd && readRow < srcData.length; readRow++) {
+                            if (!tgtData[writeRow]) tgtData[writeRow] = [];
+                            let val = srcData[readRow] ? srcData[readRow][srcColIdx] : "";
+
+                            // Apply Math
+                            if (val !== "" && !isNaN(val)) {
+                                if (op === 'mult') val = val * mod;
+                                if (op === 'add') val = val + mod;
+                            }
+
+                            tgtData[writeRow][tgtColIdx] = val;
+                            writeRow++;
+                        }
+
                     } else {
                         // SIMPLE COPY (Vertical)
                         let writeRow = tgtStart;
