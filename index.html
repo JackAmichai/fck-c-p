@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SimpleExcel - Secure & Private</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        .input-box {
+            border: 1px solid #000;
+            padding: 4px;
+            text-align: center;
+            width: 60px;
+            background: transparent;
+        }
+
+        .btn-icon {
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.2rem;
+            user-select: none;
+        }
+
+        .drop-zone {
+            border: 2px dashed #9ca3af;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.2s;
+            background: white;
+        }
+
+        .drop-zone:hover {
+            background: #f3f4f6;
+            border-color: #000;
+        }
+
+        .drop-zone.active {
+            border-color: #107C41;
+            background: #f0fdf4;
+        }
+
+        /* Excel Green Active State */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+    </style>
+</head>
+
+<body class="flex flex-col items-center min-h-screen py-10 px-4">
+
+    <h1 class="text-3xl font-light mb-2 text-center">The simplest way to Excel</h1>
+    <p class="text-xs text-gray-400 mb-8 uppercase tracking-widest">Client-Side Processing • No Data Uploaded</p>
+
+    <div class="w-full max-w-2xl bg-white p-8 shadow-xl rounded-lg" style="min-height: 600px;">
+
+        <div id="rulesContainer">
+            <div class="rule-row mb-8 border-b pb-6 relative" data-id="1">
+
+                <div class="flex flex-wrap items-center gap-2 mb-2">
+                    <span>Take Column</span>
+                    <input type="text" class="input-box rule-src-col" placeholder="A">
+                    <span>From Row</span>
+                    <input type="number" class="input-box rule-src-start" value="1">
+                    <span>Until</span>
+                    <input type="number" class="input-box rule-src-end" placeholder="End">
+
+                    <span class="btn-icon text-[#107C41] ml-2 hover:scale-110" onclick="addRule()"
+                        title="Add another column">+</span>
+                    <span class="btn-icon text-[#107C41] ml-2 hover:scale-110" onclick="openAdvanced(this)"
+                        title="Advanced Logic">*</span>
+                </div>
+
+                <div
+                    class="advanced-badge hidden text-xs bg-green-100 text-green-800 px-2 py-1 rounded inline-block mt-1">
+                    Match: If Source <span class="adv-src font-bold">?</span> == Target <span
+                        class="adv-tgt font-bold">?</span>
+                    <span class="cursor-pointer text-red-500 font-bold ml-2" onclick="clearAdvanced(this)">x</span>
+                </div>
+
+                <input type="hidden" class="rule-adv-active" value="false">
+                <input type="hidden" class="rule-match-src" value="">
+                <input type="hidden" class="rule-match-tgt" value="">
+
+                <div class="text-gray-400 text-center my-2 text-xl">↓</div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                    <span>Put in Column</span>
+                    <input type="text" class="input-box rule-tgt-col" placeholder="B">
+                    <span>Starting Row</span>
+                    <input type="number" class="input-box rule-tgt-start" value="1">
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-6">
+            <label class="block mb-2 font-semibold">From file (Source)</label>
+            <div class="drop-zone" id="dropSource">
+                <p class="text-gray-600 pointer-events-none">Click to select or drop file</p>
+                <input type="file" id="fileSource" accept=".xlsx" class="hidden">
+                <p id="nameSource" class="text-sm font-bold mt-2 text-[#107C41] pointer-events-none"></p>
+            </div>
+        </div>
+
+        <div class="mb-8">
+            <label class="block mb-2 font-semibold">To file (Destination)</label>
+            <div class="drop-zone" id="dropTarget">
+                <p class="text-gray-600 pointer-events-none">Click to select or drop file</p>
+                <input type="file" id="fileTarget" accept=".xlsx" class="hidden">
+                <p id="nameTarget" class="text-sm font-bold mt-2 text-[#107C41] pointer-events-none"></p>
+            </div>
+        </div>
+
+        <button id="processBtn"
+            class="w-full bg-[#107C41] text-white py-4 text-xl font-light hover:bg-[#0b5c2f] transition rounded-sm">
+            Process & Download
+        </button>
+        <p id="statusMsg" class="text-center text-sm text-gray-500 mt-2"></p>
+
+    </div>
+
+    <div id="advModal" class="modal">
+        <div class="bg-white p-6 rounded shadow-lg w-96">
+            <h3 class="text-lg font-bold mb-4">Advanced Matching (VLOOKUP)</h3>
+            <p class="text-sm text-gray-600 mb-4">Only transfer data if a unique ID matches (e.g., Product ID).</p>
+
+            <div class="mb-3">
+                <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Match ID in Source Column:</label>
+                <input type="text" id="modalSrcCol" class="border p-2 w-full rounded" placeholder="e.g. A">
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Match ID in Target Column:</label>
+                <input type="text" id="modalTgtCol" class="border p-2 w-full rounded" placeholder="e.g. A">
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <button type="button" onclick="closeModal()"
+                    class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
+                <button type="button" onclick="saveAdvanced()"
+                    class="px-4 py-2 bg-[#107C41] text-white rounded hover:bg-[#0b5c2f]">Save Rule</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Privacy Trigger -->
+    <div class="mt-8 text-center">
+        <button onclick="openPrivacy()"
+            class="text-gray-400 text-sm hover:text-[#107C41] transition flex items-center gap-1 mx-auto">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            100% Private & Secure
+        </button>
+    </div>
+
+    <!-- Privacy Modal -->
+    <div id="privacyModal" class="modal">
+        <div class="bg-white p-8 rounded-lg shadow-2xl max-w-lg text-center mx-4">
+            <div class="mb-4 flex justify-center text-[#107C41]">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold mb-2 text-gray-800">100% Private & Secure</h2>
+            <h3 class="text-sm font-semibold text-[#107C41] mb-6 uppercase tracking-wider">Your data never leaves this
+                device.</h3>
+
+            <p class="text-gray-600 mb-4 leading-relaxed text-left">
+                Unlike other online tools, this website <span class="font-bold text-black">does not upload your
+                    files</span> to a cloud server.
+            </p>
+            <p class="text-gray-600 mb-6 leading-relaxed text-left">
+                We use a new technology that allows your web browser to do all the math right here on your computer. It
+                is physically impossible for us (or anyone else) to see, store, or share your data.
+            </p>
+
+            <div class="bg-gray-50 p-4 rounded border border-gray-200 mb-6 text-sm text-gray-500">
+                <span class="font-bold text-black">The Ultimate Test:</span> You can load this page, <span
+                    class="underline">turn off your WiFi</span>, and the tool will still work perfectly. That is how you
+                know your data is staying with you.
+            </div>
+
+            <button onclick="closePrivacy()"
+                class="bg-[#107C41] text-white px-8 py-3 rounded-full hover:bg-[#0b5c2f] transition font-semibold shadow-lg">
+                Got it
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function openPrivacy() { document.getElementById('privacyModal').style.display = 'flex'; }
+        function closePrivacy() { document.getElementById('privacyModal').style.display = 'none'; }
+        // --- 1. UTILITIES ---
+        // Convert Column Letter to Index (A -> 0, B -> 1, AA -> 26)
+        function colToIndex(col) {
+            if (!col) return -1;
+            let column = col.toUpperCase(), sum = 0;
+            for (let i = 0; i < column.length; i++) {
+                sum *= 26;
+                sum += (column.charCodeAt(i) - 64);
+            }
+            return sum - 1;
+        }
+
+        // --- 2. FILE HANDLING ---
+        let sourceWorkbook = null;
+        let targetWorkbook = null;
+
+        function setupDrop(zoneId, inputId, nameId, type) {
+            const zone = document.getElementById(zoneId);
+            const input = document.getElementById(inputId);
+            const nameDisplay = document.getElementById(nameId);
+
+            zone.addEventListener('click', () => input.click());
+
+            input.addEventListener('change', (e) => handleFile(e.target.files[0], nameDisplay, type));
+
+            zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('active'); });
+            zone.addEventListener('dragleave', () => zone.classList.remove('active'));
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                zone.classList.remove('active');
+                if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0], nameDisplay, type);
+            });
+        }
+
+        async function handleFile(file, displayElement, type) {
+            if (!file) return;
+            displayElement.textContent = "Loading...";
+
+            const data = await file.arrayBuffer();
+            const workbook = XLSX.read(data);
+
+            if (type === 'source') sourceWorkbook = workbook;
+            if (type === 'target') targetWorkbook = workbook;
+
+            displayElement.textContent = file.name + " (Ready)";
+        }
+
+        setupDrop('dropSource', 'fileSource', 'nameSource', 'source');
+        setupDrop('dropTarget', 'fileTarget', 'nameTarget', 'target');
+
+
+        // --- 3. DYNAMIC UI LOGIC ---
+        function addRule() {
+            const container = document.getElementById('rulesContainer');
+            const firstRow = container.querySelector('.rule-row');
+            const clone = firstRow.cloneNode(true);
+            clone.querySelectorAll('input').forEach(i => i.value = (i.type === "number" ? "1" : ""));
+            clone.querySelector('.advanced-badge').classList.add('hidden');
+            clone.querySelector('.rule-adv-active').value = "false";
+            container.appendChild(clone);
+        }
+
+        let currentActiveRow = null;
+        const modal = document.getElementById('advModal');
+
+        function openAdvanced(btn) {
+            currentActiveRow = btn.closest('.rule-row');
+            modal.style.display = 'flex';
+            document.getElementById('modalSrcCol').value = currentActiveRow.querySelector('.rule-match-src').value;
+            document.getElementById('modalTgtCol').value = currentActiveRow.querySelector('.rule-match-tgt').value;
+        }
+
+        function closeModal() { modal.style.display = 'none'; currentActiveRow = null; }
+
+        function saveAdvanced() {
+            if (!currentActiveRow) return;
+            const src = document.getElementById('modalSrcCol').value;
+            const tgt = document.getElementById('modalTgtCol').value;
+            if (src && tgt) {
+                currentActiveRow.querySelector('.rule-adv-active').value = "true";
+                currentActiveRow.querySelector('.rule-match-src').value = src;
+                currentActiveRow.querySelector('.rule-match-tgt').value = tgt;
+                const badge = currentActiveRow.querySelector('.advanced-badge');
+                badge.classList.remove('hidden');
+                badge.querySelector('.adv-src').innerText = src.toUpperCase();
+                badge.querySelector('.adv-tgt').innerText = tgt.toUpperCase();
+            }
+            closeModal();
+        }
+
+        function clearAdvanced(btn) {
+            const row = btn.closest('.rule-row');
+            row.querySelector('.rule-adv-active').value = "false";
+            row.querySelector('.rule-match-src').value = "";
+            row.querySelector('.rule-match-tgt').value = "";
+            row.querySelector('.advanced-badge').classList.add('hidden');
+        }
+
+        // --- 4. THE PROCESSING BRAIN (No Backend!) ---
+        document.getElementById('processBtn').addEventListener('click', () => {
+            const status = document.getElementById('statusMsg');
+
+            if (!sourceWorkbook || !targetWorkbook) {
+                alert("Please upload both Source and Target files first.");
+                return;
+            }
+
+            status.textContent = "Processing...";
+
+            // Get first sheets (Standard behavior)
+            const srcSheetName = sourceWorkbook.SheetNames[0];
+            const tgtSheetName = targetWorkbook.SheetNames[0];
+
+            // Convert to JSON (Array of Arrays) for easy manipulation
+            // header:1 results in an array of arrays e.g. [ ["Name", "Age"], ["John", 25] ]
+            let srcData = XLSX.utils.sheet_to_json(sourceWorkbook.Sheets[srcSheetName], { header: 1, defval: "" });
+            let tgtData = XLSX.utils.sheet_to_json(targetWorkbook.Sheets[tgtSheetName], { header: 1, defval: "" });
+
+            // Iterate Rules
+            document.querySelectorAll('.rule-row').forEach(row => {
+                const srcColIdx = colToIndex(row.querySelector('.rule-src-col').value);
+                const srcStart = parseInt(row.querySelector('.rule-src-start').value) - 1; // 0-based
+                let srcEnd = row.querySelector('.rule-src-end').value;
+                srcEnd = srcEnd ? parseInt(srcEnd) : srcData.length;
+
+                const tgtColIdx = colToIndex(row.querySelector('.rule-tgt-col').value);
+                const tgtStart = parseInt(row.querySelector('.rule-tgt-start').value) - 1;
+
+                const isAdvanced = row.querySelector('.rule-adv-active').value === "true";
+
+                if (srcColIdx < 0 || tgtColIdx < 0) return; // Skip invalid rules
+
+                if (isAdvanced) {
+                    // --- VLOOKUP LOGIC ---
+                    const matchSrcIdx = colToIndex(row.querySelector('.rule-match-src').value);
+                    const matchTgtIdx = colToIndex(row.querySelector('.rule-match-tgt').value);
+
+                    // 1. Build Map from Source { MatchValue: DataValue }
+                    let dataMap = new Map();
+                    for (let i = srcStart; i < srcEnd && i < srcData.length; i++) {
+                        if (!srcData[i]) continue;
+                        let key = srcData[i][matchSrcIdx];
+                        let val = srcData[i][srcColIdx];
+                        if (key !== undefined && key !== "") dataMap.set(String(key).trim(), val);
+                    }
+
+                    // 2. Apply to Target
+                    for (let i = tgtStart; i < tgtData.length; i++) {
+                        if (!tgtData[i]) tgtData[i] = []; // Ensure row exists
+                        let key = tgtData[i][matchTgtIdx];
+                        if (key !== undefined && dataMap.has(String(key).trim())) {
+                            tgtData[i][tgtColIdx] = dataMap.get(String(key).trim());
+                        }
+                    }
+
+                } else {
+                    // --- SIMPLE COPY LOGIC ---
+                    let writeRow = tgtStart;
+                    for (let readRow = srcStart; readRow < srcEnd && readRow < srcData.length; readRow++) {
+                        if (!tgtData[writeRow]) tgtData[writeRow] = []; // Ensure row exists
+
+                        let val = srcData[readRow] ? srcData[readRow][srcColIdx] : "";
+                        tgtData[writeRow][tgtColIdx] = val;
+
+                        writeRow++;
+                    }
+                }
+            });
+
+            // Convert back to Worksheet
+            const newSheet = XLSX.utils.aoa_to_sheet(tgtData);
+            targetWorkbook.Sheets[tgtSheetName] = newSheet;
+
+            // Trigger Download
+            XLSX.writeFile(targetWorkbook, "SimpleExcel_Result.xlsx");
+            status.textContent = "Done! Download started.";
+        });
+    </script>
+</body>
+
+</html>
