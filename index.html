@@ -63,6 +63,112 @@
             justify-content: center;
             z-index: 50;
         }
+
+        /* Bot Styles */
+        .bot-icon {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: #107C41;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            z-index: 40;
+            transition: transform 0.2s;
+        }
+
+        .bot-icon:hover {
+            transform: scale(1.1);
+        }
+
+        .bot-window {
+            display: none;
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            width: 350px;
+            height: 500px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+            z-index: 40;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid #e5e7eb;
+        }
+
+        .bot-header {
+            background: #107C41;
+            color: white;
+            padding: 15px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .bot-messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background: #f9fafb;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .msg {
+            max-width: 85%;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .msg-bot {
+            align-self: flex-start;
+            background: #e5e7eb;
+            color: black;
+            border-bottom-left-radius: 2px;
+        }
+
+        .msg-user {
+            align-self: flex-end;
+            background: #107C41;
+            color: white;
+            border-bottom-right-radius: 2px;
+        }
+
+        .bot-options {
+            padding: 10px;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .bot-opt-btn {
+            font-size: 0.8rem;
+            padding: 6px 12px;
+            border: 1px solid #107C41;
+            color: #107C41;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: 0.2s;
+            background: white;
+        }
+
+        .bot-opt-btn:hover {
+            background: #107C41;
+            color: white;
+        }
     </style>
 </head>
 
@@ -270,6 +376,27 @@
                 class="bg-[#107C41] text-white px-8 py-3 rounded-full hover:bg-[#0b5c2f] transition font-semibold shadow-lg">
                 Got it
             </button>
+        </div>
+    </div>
+
+    <!-- HELP BOT -->
+    <div class="bot-icon" onclick="toggleBot()">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+        </svg>
+    </div>
+
+    <div id="botWindow" class="bot-window">
+        <div class="bot-header">
+            <span>Excel Assistant</span>
+            <span class="cursor-pointer text-xl" onclick="toggleBot()">&times;</span>
+        </div>
+        <div id="botMessages" class="bot-messages">
+            <!-- Messages go here -->
+        </div>
+        <div id="botOptions" class="bot-options">
+            <!-- Options go here -->
         </div>
     </div>
 
@@ -590,6 +717,84 @@
             XLSX.writeFile(targetWorkbook, "SimpleExcel_Result.xlsx");
             status.textContent = "Done! Download started.";
         });
+
+        // --- 5. HELP BOT LOGIC ---
+        const botData = {
+            'start': {
+                text: "Hi! I'm your Excel helper. How can I help you today?",
+                options: [
+                    { label: "How do I use this?", next: 'usage' },
+                    { label: "What is Advanced Logic?", next: 'advanced' },
+                    { label: "Is this secure?", next: 'security' },
+                    { label: "Can I copy Rows?", next: 'rows' }
+                ]
+            },
+            'usage': {
+                text: "It's simple: \n1. Drag your Source Excel file into the first box.\n2. Drag your Target Excel file into the second box.\n3. Verify your rules (e.g. 'Take Col A to Col B').\n4. Click 'Process & Download'.",
+                options: [
+                    { label: "Back to menu", next: 'start' }
+                ]
+            },
+            'advanced': {
+                text: "Click the * button nicely to see powerful options:\n\n• Match (VLOOKUP): Only copy if an ID matches.\n• Filter: Only copy if a column contains specific text.\n• Math: Multiply or add numbers during the copy.",
+                options: [
+                    { label: "Back to menu", next: 'start' }
+                ]
+            },
+            'security': {
+                text: "Yes, 100%. We use a technology called WebAssembly/JS to process your file locally. Your data NEVER leaves your computer. You can even use this site with your WiFi turned off!",
+                options: [
+                    { label: "That's cool", next: 'start' }
+                ]
+            },
+            'rows': {
+                text: "Yes! By default we copy Columns (Vertical). But you can switch any rule to 'Row' mode using the dropdown. This lets you copy data Horizontally (e.g. Take Row 1 from Col A to Z).",
+                options: [
+                    { label: "Back to menu", next: 'start' }
+                ]
+            }
+        };
+
+        const botWindow = document.getElementById('botWindow');
+        const msgs = document.getElementById('botMessages');
+        const opts = document.getElementById('botOptions');
+
+        function toggleBot() {
+            if (botWindow.style.display === 'flex') {
+                botWindow.style.display = 'none';
+            } else {
+                botWindow.style.display = 'flex';
+                if (msgs.children.length === 0) gotoState('start');
+            }
+        }
+
+        function gotoState(key) {
+            const data = botData[key];
+            addMsg(data.text, 'bot');
+            renderOpts(data.options);
+        }
+
+        function addMsg(text, sender) {
+            const div = document.createElement('div');
+            div.className = `msg msg-${sender}`;
+            div.innerText = text;
+            msgs.appendChild(div);
+            msgs.scrollTop = msgs.scrollHeight;
+        }
+
+        function renderOpts(options) {
+            opts.innerHTML = '';
+            options.forEach(o => {
+                const btn = document.createElement('button');
+                btn.className = 'bot-opt-btn';
+                btn.innerText = o.label;
+                btn.onclick = () => {
+                    addMsg(o.label, 'user');
+                    gotoState(o.next);
+                };
+                opts.appendChild(btn);
+            });
+        }
     </script>
 </body>
 
