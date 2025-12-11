@@ -24,3 +24,7 @@ This project is built with a **Zero-Trust, Serverless Architecture**.
 *   HTML5 / Vanilla JavaScript
 *   TailwindCSS (Styling)
 *   SheetJS (Excel Processing)
+
+
+https://github.com/user-attachments/assets/c9e66e59-3df6-43a6-974c-f6f0a3005a2d
+
